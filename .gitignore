@@ -1,0 +1,9 @@
+# JetBrains IDEs
+.idea/
+
+# Node
+node_modules/
+
+# Secrets as environment variables
+.secret.env
+

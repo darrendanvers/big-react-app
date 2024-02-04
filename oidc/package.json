@@ -1,0 +1,21 @@
+{
+  "type": "module",
+  "name": "big-react-app-oidc",
+  "version": "1.0.0",
+  "description": "The OIDC provider for my big React app.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "with-key": "node --env-file=.secret.env app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name": "Darren Danvers",
+    "email": "darren@darrenhacks.dev",
+    "url": "https://darrenhacks.dev"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "oidc-provider": "^8.4.5"
+  }
+}
