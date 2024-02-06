@@ -7,3 +7,5 @@ node_modules/
 # Secrets as environment variables
 .secret.env
 
+# Used for testing the OIDC server
+.last_verifier.env
