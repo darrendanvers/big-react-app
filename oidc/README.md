@@ -47,5 +47,3 @@ skip to step 4.
 
 - [https://www.scottbrady91.com/openid-connect/getting-started-with-oidc-provider](https://www.scottbrady91.com/openid-connect/getting-started-with-oidc-provider)
 - [https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1)
-- [https://pazel.dev/teach-me-pkce-proof-key-for-code-exchange-in-5-minutes](https://pazel.dev/teach-me-pkce-proof-key-for-code-exchange-in-5-minutes)
-- [https://datatracker.ietf.org/doc/html/rfc7636#section-4.1](https://datatracker.ietf.org/doc/html/rfc7636#section-4.1)

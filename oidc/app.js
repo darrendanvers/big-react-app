@@ -20,7 +20,7 @@ const configuration = {
             client_secret: process.env.CLIENT_SECRET,
             grant_types: ['authorization_code'],
             response_types: ['code'],
-            redirect_uris: ['http://localhost:8080/api']
+            redirect_uris: ['http://localhost:5556/auth/callback']
         }],
     features: {
         // Needed to get the details of the opaque token.
