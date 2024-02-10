@@ -17,7 +17,9 @@
   },
   "license": "MIT",
   "dependencies": {
+    "es6-template-strings": "^2.0.1",
     "oidc-provider": "^8.4.5",
-    "open": "^10.0.3"
+    "open": "^10.0.3",
+    "yaml": "^2.3.4"
   }
 }

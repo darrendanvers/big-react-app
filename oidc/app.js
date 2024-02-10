@@ -1,4 +1,8 @@
-import Provider, {errors} from 'oidc-provider';
+import Provider from 'oidc-provider';
+import fs from 'fs';
+import { parse } from 'yaml'
+import compile from 'es6-template-strings/compile.js'
+import resolveToString from 'es6-template-strings/resolve-to-string.js'
 
 // Look up account details.
 async function findAccountImpl(ctx, id) {
@@ -10,18 +14,32 @@ async function findAccountImpl(ctx, id) {
     }
 }
 
+
+// Read the client configuration.
+let clientConfigPath = "clients.yml";
+if (process.env.CLIENTS_CONFIG) {
+    clientConfigPath = process.env.CLIENTS_CONFIG;
+}
+
+console.log(`Loading clients from ${clientConfigPath}`);
+const clientsFileContents = fs.readFileSync(clientConfigPath, 'utf8');
+
+let resolvedFileContents = clientsFileContents;
+
+// If the CLIENT_HOST environment variable is set, interpolate the contents of the file
+// with that variable.
+if (process.env.CLIENT_HOST) {
+    const compiledFileContents = compile(clientsFileContents);
+    resolvedFileContents = resolveToString(compiledFileContents, {clientHost: process.env.CLIENT_HOST});
+}
+
+const clientsConfig = parse(resolvedFileContents);
+
+// The OIDC provider configuration.
 const configuration = {
     jwks: {},
     cookies: {},
-    clients: [
-        // The test application.
-        {
-            client_id: 'oidc_client',
-            client_secret: process.env.CLIENT_SECRET,
-            grant_types: ['authorization_code'],
-            response_types: ['code'],
-            redirect_uris: ['http://localhost:5556/auth/callback']
-        }],
+    clients: clientsConfig,
     features: {
         // Needed to get the details of the opaque token.
         introspection: {
@@ -56,8 +74,14 @@ if (process.env.COOKIE_SIGNING_KEY) {
     configuration.cookies.keys = [process.env.COOKIE_SIGNING_KEY];
 }
 
+let issuer = 'http://localhost:3000';
+if (process.env.ISSUER) {
+    issuer = process.env.ISSUER;
+}
+console.log(`Using ${issuer} as issuer.`);
+
 // Start the application.
-const oidc = new Provider('http://localhost:3000', configuration);
+const oidc = new Provider(issuer, configuration);
 const server = oidc.listen(3000, () => {
-    console.log('oidc-provider listening on port 3000, check http://localhost:3000/.well-known/openid-configuration');
+    console.log(`oidc-provider listening on port 3000, check ${issuer}/.well-known/openid-configuration`);
 });

@@ -2,16 +2,30 @@
 
 A lightly configured OIDC provider to aid in testing out authentication and authorization in the React app.
 
-## Configuring a client application
+## Configuring client applications
 
-1. Come up with a secret for the client application.
-2. Assign that secret to the `CLIENT_SECRET` environment variable.
-3. For convenience, you can assign this environment variable in a file called `.secret.env`. Git
-   will ignore this file.
+1. Create a YAML file with each client's configuration. By default, this file expected to be named `clients.yml`
+2. If you want to use another name, pass the path to this file to the application with the environment variable `CLIENTS_CONFIG`.
+
+Below is an example file:
+
+```
+- client_id: oidc_client
+  client_secret: client_secret
+  grant_types:
+    - authorization_code
+  response_types:
+    - code
+  redirect_uris:
+    - http://api:5556/auth/callback
+```
+
+The structure of the client object is defined in 
+the [Node OIDC Provider documentation](https://github.com/panva/node-oidc-provider/blob/main/docs/README.md#clients).
 
 ## Running the application with a JWT key
 
-If you do not have a key, you can generate one with these steps. If you have your own alredy,
+If you do not have a key, you can generate one with these steps. If you have your own already,
 skip to step 4.
 
 1. Go to [https://mkjwk.org](https://mkjwk.org).
@@ -21,7 +35,7 @@ skip to step 4.
    - Algorithm: RSASSA-PKCS1-v1_5 using SHA-256
    - Key ID: SHA-256
 3. Copy the box with the public and private keypair set to the clipboard.
-4. Base64 encode this value and set it to the `JWKS_SIGNING_KEY` environment variable.
+4. Base64 encode this value and assign it to the `JWKS_SIGNING_KEY` environment variable.
 5. For convenience, you can assign this environment variable in a file called `.secret.env`. Git
    will ignore this file.
 6. If you add this environment variable to the file as described above, you can start the application
@@ -47,3 +61,4 @@ skip to step 4.
 
 - [https://www.scottbrady91.com/openid-connect/getting-started-with-oidc-provider](https://www.scottbrady91.com/openid-connect/getting-started-with-oidc-provider)
 - [https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1)
+- [https://github.com/panva/node-oidc-provider/blob/main/docs/README.md](https://github.com/panva/node-oidc-provider/blob/main/docs/README.md)
