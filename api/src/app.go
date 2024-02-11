@@ -9,6 +9,7 @@ import (
     "log"
     "net/http"
     "os"
+    "time"
 )
 
 var (
@@ -42,11 +43,26 @@ func main() {
         log.Fatal(err)
     }
 
+    mux := http.NewServeMux()
+
     // Add routes for the login endpoints.
-    http.HandleFunc("/", loginHandler.LoginRequest())
-    http.HandleFunc("/auth/callback", loginHandler.AuthRequest(ctx))
+    mux.Handle("/login", loginHandler.LoginRequest())
+    mux.Handle("/auth/callback", loginHandler.AuthRequest())
+
+    // User info endpoint.
+    mux.Handle("/user", loginHandler.UserFilterFunc(routes.UserInfo))
+
+    // Default route.
+    mux.HandleFunc("/", routes.PathUndefined)
 
     // Start the application.
+    server := http.Server{
+        Addr:         serverAndPort,
+        ReadTimeout:  30 * time.Second,
+        WriteTimeout: 90 * time.Second,
+        IdleTimeout:  120 * time.Second,
+        Handler:      mux,
+    }
     log.Printf("listening on %s.", fullURI)
-    log.Fatal(http.ListenAndServe(serverAndPort, nil))
+    log.Fatal(server.ListenAndServe())
 }

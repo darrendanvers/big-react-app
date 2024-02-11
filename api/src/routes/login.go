@@ -5,7 +5,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
+
+	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 	"io"
@@ -53,9 +54,9 @@ func InitializeLogin(ctx context.Context, oidcProviderURI string, callbackRoute 
 
 // LoginRequest generates a callback for an HTTP request. The callback will redirect the
 // user to the OIDC provider.
-func (handler *LoginHandler) LoginRequest() func(http.ResponseWriter, *http.Request) {
+func (loginHandler *LoginHandler) LoginRequest() http.Handler {
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// Generate a random string we can send to the ODIC provider and get back to tie the response back
 		// to the original request.
@@ -72,32 +73,32 @@ func (handler *LoginHandler) LoginRequest() func(http.ResponseWriter, *http.Requ
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-		handler.tokenMap[state] = newChallengePair.code
+		loginHandler.tokenMap[state] = newChallengePair.code
 
 		// Redirect to the OIDC provider.
-		authURL := handler.config.AuthCodeURL(state,
+		authURL := loginHandler.config.AuthCodeURL(state,
 			oauth2.SetAuthURLParam("code_challenge", newChallengePair.codeChallenge),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 			oauth2.SetAuthURLParam("response_mode", "query"))
 		http.Redirect(w, r, authURL, http.StatusFound)
-	}
+	})
 }
 
 // AuthRequest generates a callback for the HTTP request the OIDC provider will redirect the browser to
 // after the user has logged in.
-func (handler *LoginHandler) AuthRequest(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		oidcConfig := &oidc.Config{ClientID: handler.config.ClientID}
+		oidcConfig := &oidc.Config{ClientID: loginHandler.config.ClientID}
 
 		code := r.URL.Query().Get("code")
 		state := r.URL.Query().Get("state")
-		initialChallenge := handler.tokenMap[state]
-		delete(handler.tokenMap, state)
+		initialChallenge := loginHandler.tokenMap[state]
+		delete(loginHandler.tokenMap, state)
 
 		// Get the detailed token information from the OIDC provider.
-		oauth2Token, err := handler.config.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", initialChallenge))
+		oauth2Token, err := loginHandler.config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", initialChallenge))
 		if err != nil {
 			log.Printf("Unable to verify token: %s.", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
@@ -113,34 +114,72 @@ func (handler *LoginHandler) AuthRequest(ctx context.Context) func(http.Response
 		}
 
 		// validate the token.
-		verifier := handler.provider.Verifier(oidcConfig)
-		idToken, err := verifier.Verify(ctx, rawIDToken)
+		idToken, ok := loginHandler.validateToken(oidcConfig, w, r, rawIDToken)
+		if !ok {
+			return
+		}
+
+		// Add a cookie with the token to the response.
+		setCookie(w, r, "token", rawIDToken)
+
+		writeTokenToResponse(idToken, w)
+	})
+}
+
+// UserFilter provides an HTTP handler that validates the user has a valid JWT before proceeding. If
+// the JWD is valid, it will call delegate for further processing. If not, it will set the
+// HTTP response to 401 (if the token is not present or is expired) or 500 (if there is an error).
+func (loginHandler *LoginHandler) UserFilter(delegate http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		rawIDToken, err := r.Cookie("token")
 		if err != nil {
-			log.Printf("Unable to verify ID token: %s.", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
 
-		resp := struct {
-			OAuth2Token   *oauth2.Token
-			IDTokenClaims *json.RawMessage
-		}{oauth2Token, new(json.RawMessage)}
-
-		if err := idToken.Claims(&resp.IDTokenClaims); err != nil {
-			log.Printf("Unable to extract claims: %s.", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
-			return
-		}
-		data, err := json.MarshalIndent(resp, "", "    ")
-		if err != nil {
-			log.Printf("Unable to format token: %s.", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
+		// validate the token.
+		oidcConfig := &oidc.Config{ClientID: loginHandler.config.ClientID}
+		oidcToken, ok := loginHandler.validateToken(oidcConfig, w, r, rawIDToken.Value)
+		if !ok {
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
 
-		// Display the token in the browser.
-		w.Write(data)
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, oidcTokenKey, oidcToken)
+		r = r.WithContext(ctx)
+
+		delegate.ServeHTTP(w, r)
+	})
+}
+
+// UserFilterFunc is a convenience method that has the same semantics as UserFilter, but will take
+// a function rather than a http.Handler as a parameter.
+func (loginHandler *LoginHandler) UserFilterFunc(delegate func(w http.ResponseWriter, r *http.Request)) http.Handler {
+	return loginHandler.UserFilter(http.HandlerFunc(delegate))
+}
+
+// validateToken checks that a JWD is valid. If not, it will set the HTTP response to 401
+// (if the token is not present or is expired) or 500 (if there is an error).
+func (loginHandler *LoginHandler) validateToken(oidcConfig *oidc.Config, w http.ResponseWriter, r *http.Request, rawToken string) (*oidc.IDToken, bool) {
+
+	verifier := loginHandler.provider.Verifier(oidcConfig)
+	idToken, err := verifier.Verify(r.Context(), rawToken)
+	if err != nil {
+		var tokenExpiredError *oidc.TokenExpiredError
+		ok := errors.As(err, &tokenExpiredError)
+		if ok {
+			log.Printf("Expired token")
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
+			return nil, false
+		}
+		log.Printf("Unable to verify ID token: %s.", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return nil, false
 	}
+	return idToken, true
 }
 
 // generateCodePair will produce a base64 URL encode string from 32 randomly chosen bytes (code).

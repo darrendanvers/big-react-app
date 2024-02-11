@@ -7,3 +7,6 @@
 # Docker environment variables
 .env
 
+# Misc
+.DS_Store
+
