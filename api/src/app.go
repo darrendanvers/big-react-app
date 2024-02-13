@@ -45,23 +45,27 @@ func main() {
 
     mux := http.NewServeMux()
 
+    unauthenticatedChainConfig := routes.MiddlewareChainConfig{}
+    authenticatedChainConfig := routes.MiddlewareChainConfig{Authenticate: true, LoginHandler: loginHandler}
+
     // Add routes for the login endpoints.
-    mux.Handle("/login", loginHandler.LoginRequest())
-    mux.Handle("/auth/callback", loginHandler.AuthRequest())
+    mux.Handle("/login", routes.MiddlewareChainOrFatal(unauthenticatedChainConfig, loginHandler.LoginRequest()))
+    mux.Handle("/auth/callback", routes.MiddlewareChainOrFatal(unauthenticatedChainConfig, loginHandler.AuthRequest()))
 
     // User info endpoint.
-    mux.Handle("/user", loginHandler.UserFilterFunc(routes.UserInfo))
+    mux.Handle("/user", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.UserInfo()))
 
     // Default route.
-    mux.HandleFunc("/", routes.PathUndefined)
+    mux.Handle("/", routes.MiddlewareChainOrFatal(unauthenticatedChainConfig, routes.PathUndefined()))
 
     // Start the application.
     server := http.Server{
-        Addr:         serverAndPort,
-        ReadTimeout:  30 * time.Second,
-        WriteTimeout: 90 * time.Second,
-        IdleTimeout:  120 * time.Second,
-        Handler:      mux,
+        Addr:              serverAndPort,
+        ReadTimeout:       30 * time.Second,
+        ReadHeaderTimeout: 10 * time.Second,
+        WriteTimeout:      90 * time.Second,
+        IdleTimeout:       120 * time.Second,
+        Handler:           mux,
     }
     log.Printf("listening on %s.", fullURI)
     log.Fatal(server.ListenAndServe())
