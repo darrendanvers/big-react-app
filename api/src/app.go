@@ -14,15 +14,6 @@ import (
 	"time"
 )
 
-func fibonacci(r int) int {
-
-	if r <= 0 {
-		return 0
-	}
-	// does stuff
-	return fibonacci(r-1) + fibonacci(r-2)
-}
-
 var (
 	clientID        = os.Getenv("CLIENT_ID")         // The client ID for this application as configured in the OIDC provider.
 	clientSecret    = os.Getenv("CLIENT_SECRET")     // The client secret for this application as configured in the OIDC provider.
