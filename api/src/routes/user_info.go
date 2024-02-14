@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/coreos/go-oidc/v3/oidc"
-	"log"
+	"github.com/rs/zerolog"
 	"net/http"
 )
 
@@ -12,15 +12,18 @@ import (
 func UserInfo() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		logger := r.Context().Value(loggerKey).(zerolog.Logger)
+
 		ctx := r.Context()
 		token, ok := ctx.Value(oidcTokenKey).(*oidc.IDToken)
 		if !ok {
-			log.Printf("Call to user info with no logged in user.")
+			logger.Error().Msg("Call to user info with no logged in user.")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		writeTokenToResponse(token, w)
+		writeTokenToResponse(logger, token, w)
 	})
 }
 

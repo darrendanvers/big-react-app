@@ -2,20 +2,16 @@ package routes
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
-	"io"
-	"log"
 	"net/http"
 )
 
 // LoginHandler provides configuration for the login framework.
 type LoginHandler struct {
+	logger   zerolog.Logger
 	provider *oidc.Provider
 	config   oauth2.Config
 	tokenMap map[string]string
@@ -58,18 +54,19 @@ func (loginHandler *LoginHandler) LoginRequest() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		logger := r.Context().Value(loggerKey).(zerolog.Logger)
 		// Generate a random string we can send to the ODIC provider and get back to tie the response back
 		// to the original request.
 		state, err := randString(32)
 		if err != nil {
-			log.Printf("Unable to generate state string: %s.", err)
+			logger.Error().Msgf("Unable to generate state string: %s.", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 		}
 
 		// Generate the PKCE code and challenge.
 		newChallengePair, err := generateCodePair()
 		if err != nil {
-			log.Printf("Unable to generate challenge pair: %s.", err)
+			logger.Error().Msgf("Unable to generate challenge pair: %s.", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
@@ -90,6 +87,8 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		logger := r.Context().Value(loggerKey).(zerolog.Logger)
+
 		oidcConfig := &oidc.Config{ClientID: loginHandler.config.ClientID}
 
 		code := r.URL.Query().Get("code")
@@ -100,7 +99,7 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 		// Get the detailed token information from the OIDC provider.
 		oauth2Token, err := loginHandler.config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", initialChallenge))
 		if err != nil {
-			log.Printf("Unable to verify token: %s.", err)
+			logger.Error().Msgf("Unable to verify token: %s.", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
@@ -108,7 +107,7 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 		// Pull out the raw token from the response.
 		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 		if !ok {
-			log.Printf("No ID token in Oauth token")
+			logger.Error().Msg("No ID token in Oauth token")
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
@@ -122,7 +121,7 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 		// Add a cookie with the token to the response.
 		setCookie(w, r, oidcCookieKey, rawIDToken)
 
-		writeTokenToResponse(idToken, w)
+		writeTokenToResponse(logger, idToken, w)
 	})
 }
 
@@ -130,17 +129,19 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 // (if the token is not present or is expired) or 500 (if there is an error).
 func (loginHandler *LoginHandler) validateToken(oidcConfig *oidc.Config, w http.ResponseWriter, r *http.Request, rawToken string) (*oidc.IDToken, bool) {
 
+	logger := r.Context().Value(loggerKey).(zerolog.Logger)
+
 	verifier := loginHandler.provider.Verifier(oidcConfig)
 	idToken, err := verifier.Verify(r.Context(), rawToken)
 	if err != nil {
 		var tokenExpiredError *oidc.TokenExpiredError
 		ok := errors.As(err, &tokenExpiredError)
 		if ok {
-			log.Printf("Expired token")
+			logger.Error().Msg("Expired token")
 			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return nil, false
 		}
-		log.Printf("Unable to verify ID token: %s.", err)
+		logger.Error().Msgf("Unable to verify ID token: %s.", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return nil, false
 	}
@@ -167,32 +168,4 @@ func generateCodePair() (challengePair, error) {
 		code:          code,
 		codeChallenge: encodedHash,
 	}, nil
-}
-
-// randBytes generates a random series of nByt bytes.
-func randBytes(nByte int) ([]byte, error) {
-	b := make([]byte, nByte)
-	_, err := io.ReadFull(rand.Reader, b)
-	return b, err
-}
-
-// hashString returns the SHA256 has of a string.
-func hashString(s string) []byte {
-	h := sha256.New()
-	h.Write([]byte(s))
-	return h.Sum(nil)
-}
-
-// bytesToString returns a base64 URL encoding of a series of bytes.
-func bytesToString(b []byte) string {
-	return base64.RawURLEncoding.EncodeToString(b)
-}
-
-// randString returns a string that is a base64 encoding of a series of nByte random bytes.
-func randString(nByte int) (string, error) {
-	b, err := randBytes(nByte)
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }

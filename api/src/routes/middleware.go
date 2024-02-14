@@ -3,9 +3,9 @@ package routes
 import (
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/rs/zerolog"
 	"golang.org/x/net/context"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -13,6 +13,7 @@ import (
 type MiddlewareChainConfig struct {
 	Authenticate bool
 	LoginHandler *LoginHandler
+	Logger       zerolog.Logger
 }
 
 // MiddlewareChainOrFatal is a convenience method that will call MiddlewareChain and log a fatal error
@@ -21,7 +22,7 @@ func MiddlewareChainOrFatal(config MiddlewareChainConfig, next http.Handler) htt
 
 	handler, err := MiddlewareChain(config, next)
 	if err != nil {
-		log.Fatal(err)
+		config.Logger.Fatal().Msg(err.Error())
 	}
 	return handler
 }
@@ -40,13 +41,33 @@ func MiddlewareChain(config MiddlewareChainConfig, next http.Handler) (http.Hand
 			return nil, err
 		}
 	}
-	return DrainAndCloseHandler(innerHandler), nil
+	return LogHandler(config, DrainAndCloseHandler(innerHandler)), nil
+}
+
+// LogHandler adds the logger from the MiddlewareChainConfig into the context so that it can
+// be used by inner logs. It will also add a span ID to each request before sending the request
+// further or in the chain.
+func LogHandler(config MiddlewareChainConfig, next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		logger := config.Logger
+		spanIDBytes, err := randBytes(8)
+		if err == nil {
+			spanID := bytesToHex(spanIDBytes)
+			logger = config.Logger.With().Str(spanIDKey, spanID).Logger()
+		}
+
+		ctx := context.WithValue(r.Context(), loggerKey, logger)
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // UserHandler provides an HTTP handler that validates the user has a valid JWT before proceeding. If
 // the JWD is valid, it will call delegate for further processing. If not, it will set the
 // HTTP response to 401 (if the token is not present or is expired) or 500 (if there is an error).
-func UserHandler(loginHandler *LoginHandler, delegate http.Handler) (http.Handler, error) {
+func UserHandler(loginHandler *LoginHandler, next http.Handler) (http.Handler, error) {
 
 	if loginHandler == nil {
 		return nil, errors.New("LoginHandler is required")
@@ -72,7 +93,7 @@ func UserHandler(loginHandler *LoginHandler, delegate http.Handler) (http.Handle
 		ctx = context.WithValue(ctx, oidcTokenKey, oidcToken)
 		r = r.WithContext(ctx)
 
-		delegate.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 	}), nil
 }
 
