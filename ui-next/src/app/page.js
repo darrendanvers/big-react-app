@@ -1,6 +1,6 @@
 import styles from "./page.module.css";
 import Authenticated from "@/app/auth/Authenticated";
-import Profile from "@/app/auth/Profile";
+import Link from "next/link";
 
 /**
  * The main application element.
@@ -13,7 +13,7 @@ export default function Home() {
     return (
         <main className={styles.main}>
             <Authenticated>
-                <Profile />
+                <Link href="/profile">Profile</Link>
             </Authenticated>
         </main>
     );

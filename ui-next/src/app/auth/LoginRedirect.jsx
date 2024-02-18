@@ -1,6 +1,7 @@
 'use client';
-import styles from '../globals.css'
-import { useRouter } from 'next/navigation'
+import styles from '../globals.css';
+import { useRouter } from 'next/navigation';
+import {useEffect, useState} from "react";
 
 /**
  * Provides a button to allow the user to redirect to the OIDC server.
@@ -10,10 +11,15 @@ import { useRouter } from 'next/navigation'
  */
 export function LoginRedirect() {
 
+    const [location, setLocation] = useState('');
     const router = useRouter();
 
+    useEffect(function mount() {
+        setLocation(window.location.href);
+    }, [])
+
     const handleClick = () => {
-       router.push("/api/login");
+       router.push(`/api/login?relay=${encodeURIComponent(location)}`);
     }
 
     return (

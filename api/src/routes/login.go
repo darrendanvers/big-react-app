@@ -7,14 +7,26 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"net/http"
+	"net/url"
+	"regexp"
 )
+
+// LoginConfig ties together all the properties to set when initializing the LoginHandler.
+type LoginConfig struct {
+	OidcProviderURI       string
+	CallbackRoute         string
+	ClientID              string
+	ClientSecret          string
+	AllowedRedirectsRegex string
+}
 
 // LoginHandler provides configuration for the login framework.
 type LoginHandler struct {
-	logger   zerolog.Logger
-	provider *oidc.Provider
-	config   oauth2.Config
-	tokenMap map[string]string
+	logger                zerolog.Logger
+	provider              *oidc.Provider
+	config                oauth2.Config
+	tokenMap              map[string]requestState
+	allowedRedirectsRegex string
 }
 
 type challengePair struct {
@@ -22,28 +34,34 @@ type challengePair struct {
 	codeChallenge string
 }
 
-// InitializeLogin initializes the login framework.
-func InitializeLogin(ctx context.Context, oidcProviderURI string, callbackRoute string, clientID string, clientSecret string) (*LoginHandler, error) {
+type requestState struct {
+	code  string
+	relay string
+}
 
-	provider, err := oidc.NewProvider(ctx, oidcProviderURI)
+// InitializeLogin initializes the login framework.
+func InitializeLogin(ctx context.Context, loginConfig LoginConfig) (*LoginHandler, error) {
+
+	provider, err := oidc.NewProvider(ctx, loginConfig.OidcProviderURI)
 	if err != nil {
 		return nil, err
 	}
 
 	config := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     loginConfig.ClientID,
+		ClientSecret: loginConfig.ClientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  callbackRoute,
+		RedirectURL:  loginConfig.CallbackRoute,
 		Scopes:       []string{oidc.ScopeOpenID},
 	}
 
-	tokenMap := make(map[string]string)
+	tokenMap := make(map[string]requestState)
 
 	handler := &LoginHandler{
-		provider: provider,
-		config:   config,
-		tokenMap: tokenMap,
+		provider:              provider,
+		config:                config,
+		tokenMap:              tokenMap,
+		allowedRedirectsRegex: loginConfig.AllowedRedirectsRegex,
 	}
 	return handler, nil
 }
@@ -70,7 +88,14 @@ func (loginHandler *LoginHandler) LoginRequest() http.Handler {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-		loginHandler.tokenMap[state] = newChallengePair.code
+
+		relay := r.URL.Query().Get("relay")
+		ok := loginHandler.validateRedirect(logger, w, relay)
+		if !ok {
+			return
+		}
+
+		loginHandler.tokenMap[state] = requestState{code: newChallengePair.code, relay: relay}
 
 		// Redirect to the OIDC provider.
 		authURL := loginHandler.config.AuthCodeURL(state,
@@ -93,11 +118,11 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 
 		code := r.URL.Query().Get("code")
 		state := r.URL.Query().Get("state")
-		initialChallenge := loginHandler.tokenMap[state]
+		requestState := loginHandler.tokenMap[state]
 		delete(loginHandler.tokenMap, state)
 
 		// Get the detailed token information from the OIDC provider.
-		oauth2Token, err := loginHandler.config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", initialChallenge))
+		oauth2Token, err := loginHandler.config.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", requestState.code))
 		if err != nil {
 			logger.Error().Msgf("Unable to verify token: %s.", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
@@ -113,15 +138,15 @@ func (loginHandler *LoginHandler) AuthRequest() http.Handler {
 		}
 
 		// validate the token.
-		idToken, ok := loginHandler.validateToken(oidcConfig, w, r, rawIDToken)
+		_, ok = loginHandler.validateToken(oidcConfig, w, r, rawIDToken)
 		if !ok {
 			return
 		}
 
 		// Add a cookie with the token to the response.
 		setCookie(w, r, oidcCookieKey, rawIDToken)
-
-		writeTokenToResponse(logger, idToken, w)
+		http.Redirect(w, r, requestState.relay, http.StatusFound)
+		//writeTokenToResponse(logger, idToken, w)
 	})
 }
 
@@ -138,14 +163,37 @@ func (loginHandler *LoginHandler) validateToken(oidcConfig *oidc.Config, w http.
 		ok := errors.As(err, &tokenExpiredError)
 		if ok {
 			logger.Error().Msg("Expired token")
-			http.Error(w, "unauthenticated", http.StatusUnauthorized)
+			http.Error(w, "token expired", http.StatusUnauthorized)
 			return nil, false
 		}
 		logger.Error().Msgf("Unable to verify ID token: %s.", err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return nil, false
 	}
 	return idToken, true
+}
+
+func (loginHandler *LoginHandler) validateRedirect(logger zerolog.Logger, w http.ResponseWriter, rawURL string) bool {
+
+	redirectURL, err := url.Parse(rawURL)
+	if err != nil {
+		logger.Error().Msgf("Unable to parse relay parameter as URL: %s.", err)
+		http.Error(w, "Invalid relay", http.StatusBadRequest)
+		return false
+	}
+	matched, err := regexp.MatchString(loginHandler.allowedRedirectsRegex, regexp.QuoteMeta(redirectURL.String()))
+	if err != nil {
+		logger.Error().Msgf("Unable to validate relay: %s.", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return false
+	}
+	if !matched {
+		logger.Error().Msgf("Relay '%s' does not mach a configured pattern.", rawURL)
+		http.Error(w, "Relay does not match a configured pattern", http.StatusBadRequest)
+		return false
+	}
+
+	return true
 }
 
 // generateCodePair will produce a base64 URL encode string from 32 randomly chosen bytes (code).

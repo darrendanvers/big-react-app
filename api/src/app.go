@@ -15,12 +15,13 @@ import (
 )
 
 var (
-	clientID        = os.Getenv("CLIENT_ID")         // The client ID for this application as configured in the OIDC provider.
-	clientSecret    = os.Getenv("CLIENT_SECRET")     // The client secret for this application as configured in the OIDC provider.
-	oidcProviderURI = os.Getenv("OIDC_PROVIDER_URI") // The URI of the OIDC provider.
-	hostname        = os.Getenv("HOSTNAME")          // The hostname of this application as configured in the OIDC provider.
-	port            = os.Getenv("PORT")              // The port the application should be listening on.
-	redirectBaseURI = os.Getenv("REDIRECT_URI")      // The URL to send to the OIDC provider to redirect the browser back to.
+	clientID         = os.Getenv("CLIENT_ID")              // The client ID for this application as configured in the OIDC provider.
+	clientSecret     = os.Getenv("CLIENT_SECRET")          // The client secret for this application as configured in the OIDC provider.
+	oidcProviderURI  = os.Getenv("OIDC_PROVIDER_URI")      // The URI of the OIDC provider.
+	hostname         = os.Getenv("HOSTNAME")               // The hostname of this application as configured in the OIDC provider.
+	port             = os.Getenv("PORT")                   // The port the application should be listening on.
+	redirectBaseURI  = os.Getenv("REDIRECT_URI")           // The URL to send to the OIDC provider to redirect the browser back to.
+	allowedRedirects = os.Getenv("ALLOWED_REDIRECT_REGEX") // A regex to validate URIs this server is allowed to redirect back to after successful login.
 )
 
 // Main application driver method.
@@ -46,8 +47,14 @@ func main() {
 	}
 
 	// Initialize the login OIDC framework.
-	loginHandler, err := routes.InitializeLogin(ctx, oidcProviderURI,
-		redirectURI, clientID, clientSecret)
+	loginConfig := routes.LoginConfig{
+		OidcProviderURI:       oidcProviderURI,
+		CallbackRoute:         redirectURI,
+		ClientID:              clientID,
+		ClientSecret:          clientSecret,
+		AllowedRedirectsRegex: allowedRedirects,
+	}
+	loginHandler, err := routes.InitializeLogin(ctx, loginConfig)
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
 	}

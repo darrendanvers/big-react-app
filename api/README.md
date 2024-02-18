@@ -14,6 +14,8 @@ You will need to define the following environment variables to run this applicat
 - OIDC_PROVIDER_URI - The URI of the OIDC provider.
 - HOSTNAME - The hostname of this application as configured in the OIDC provider.
 - PORT - The port the application should be listening on.
+- ALLOWED_REDIRECT_REGEX - A regular expression used to match which URLs this services is allowed
+  to redirect back to after a successful login.
 - (optional) REDIRECT_URI - If the OIDC provider needs to redirect back to a different host than 
   HOSTNAME, set this to the base of that including scheme, host, and port (this is needed to get the services to
   talk when running with Docker Compose). 
