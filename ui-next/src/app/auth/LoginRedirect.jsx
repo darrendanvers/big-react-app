@@ -1,5 +1,4 @@
 'use client';
-import styles from '../globals.css';
 import { useRouter } from 'next/navigation';
 import {useEffect, useState} from "react";
 
@@ -23,6 +22,6 @@ export function LoginRedirect() {
     }
 
     return (
-        <button style={styles.button} onClick={handleClick}>Go to login screen</button>
+        <button onClick={handleClick}>Go to login screen</button>
     );
 }

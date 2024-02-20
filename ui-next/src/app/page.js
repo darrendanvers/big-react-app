@@ -14,6 +14,7 @@ export default function Home() {
         <main className={styles.main}>
             <Authenticated>
                 <Link href="/profile">Profile</Link>
+                <Link href="/data">Data</Link>
             </Authenticated>
         </main>
     );

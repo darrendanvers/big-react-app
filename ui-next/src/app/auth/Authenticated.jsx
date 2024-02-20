@@ -1,4 +1,4 @@
-import {getUserToken} from "@/util/user";
+import {getUser} from "@/util/user";
 import {LoginRedirect} from "@/app/auth/LoginRedirect";
 
 /**
@@ -11,7 +11,7 @@ import {LoginRedirect} from "@/app/auth/LoginRedirect";
  */
 export default async function Authenticated({children}) {
 
-    const userToken = await getUserToken();
+    const userToken = await getUser();
 
     if (!userToken.ok) {
         return <LoginRedirect />

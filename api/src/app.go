@@ -46,6 +46,8 @@ func main() {
 		redirectURI = redirectBaseURI + "/auth/callback"
 	}
 
+	//redirectURI := "http://localhost:3001/api/auth/callback"
+
 	// Initialize the login OIDC framework.
 	loginConfig := routes.LoginConfig{
 		OidcProviderURI:       oidcProviderURI,
@@ -70,6 +72,9 @@ func main() {
 
 	// User info endpoint.
 	mux.Handle("/user", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.UserInfo()))
+
+	// Respond with data.
+	mux.Handle("/data", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetData()))
 
 	// Default route.
 	mux.Handle("/", routes.MiddlewareChainOrFatal(unauthenticatedChainConfig, routes.PathUndefined()))

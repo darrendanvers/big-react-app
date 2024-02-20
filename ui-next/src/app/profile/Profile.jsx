@@ -1,4 +1,4 @@
-import {getUserToken} from "@/util/user";
+import {getUser} from "@/util/user";
 
 /**
  * Displays a logged-in user's details.
@@ -8,7 +8,7 @@ import {getUserToken} from "@/util/user";
  */
 export default async function Profile() {
 
-    const userToken = await getUserToken();
+    const userToken = await getUser();
 
     let userData = "";
     if (userToken.ok) {
