@@ -1,4 +1,4 @@
-import {getValidatedRawToken} from "@/util/user";
+import {getValidatedRawToken, UnauthenticatedError } from "@/util/user";
 
 /**
  * Returns the path to the API server.
@@ -52,12 +52,24 @@ export function get(uri) {
             const fullUri = `${getServerApiBaseUri()}/${uri}`;
 
             return fetch(fullUri, opts)
-                .then((r) => {
-                    if (r.ok) {
-                        return r.json()
-                    } else {
-                        throw new Error(r.statusText);
-                    }
-                });
+                .then((r) => decorateResponse(r))
+                .catch((e) => handleErrorResponse(e));
         });
+}
+
+export function decorateResponse(r) {
+    if (!r.ok) {
+        const unauthenticated = r.status === 401;
+        const unauthorized = r.status === 403;
+        return {ok: false, error: false, unauthenticated: unauthenticated, unauthorized: unauthorized, message: r.statusText};
+    }
+    return r.json()
+        .then((j) => {
+            j.ok = true;
+            return j;
+        });
+}
+
+export function handleErrorResponse(e) {
+    return Promise.resolve({ok: false, error: true, unauthenticated: false, unauthorized: false, message: e.message})
 }

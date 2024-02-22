@@ -1,5 +1,12 @@
 import {cookies} from "next/headers";
-import {decorateRequestWithUserToken, getServerApiBaseUri, getOpts} from "@/util/http";
+import {
+    decorateRequestWithUserToken,
+    getServerApiBaseUri,
+    getOpts,
+    decorateResponse,
+    handleErrorResponse,
+    get
+} from "@/util/http";
 
 /**
  * Returns the raw user login token after validation wrapped in an indicator object. If the token is valid,
@@ -11,14 +18,14 @@ export function getValidatedRawToken() {
 
     const token = getRawUserToken();
     if  (token == null) {
-        return Promise.resolve({ok: false});
+        return Promise.resolve({ok: false, unauthenticated: true});
     } else {
         return validateUserToken(token)
             .then((j) => {
                 if (j.ok) {
                     return {ok: true, token: token};
                 } else {
-                    return {ok: false};
+                    j;
                 }
             })
     }
@@ -35,10 +42,14 @@ export function getUser() {
 
     const token = getRawUserToken();
     if (token == null) {
-        return Promise.resolve({ok: false});
+        return Promise.resolve({ok: false, error:false, unauthenticated: true, unauthorized: false});
     } else {
         return validateUserToken(token);
     }
+}
+
+export function getUserPermissions() {
+   return get("/user/permissions");
 }
 
 function getRawUserToken() {
@@ -50,14 +61,6 @@ function validateUserToken(token) {
 
     const opts = decorateRequestWithUserToken(getOpts(), token);
     return fetch( `${getServerApiBaseUri()}/user`, opts)
-        .then((r) => {
-            if (!r.ok) {
-                return {ok: false};
-            }
-            return r.json()
-                .then((j) => {
-                    j.ok = true;
-                    return j;
-                });
-        });
+        .then((r) => decorateResponse(r))
+        .catch((e) => handleErrorResponse(e));
 }

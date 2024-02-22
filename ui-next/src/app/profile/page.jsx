@@ -1,4 +1,5 @@
 import Profile from "@/app/profile/Profile";
+import Navbar from "@/common/Navbar";
 
 /**
  * Primary component for the profile route.
@@ -9,6 +10,9 @@ import Profile from "@/app/profile/Profile";
 export default function UserProfile() {
 
     return (
-        <><Profile /></>
+        <>
+            <Navbar />
+            <Profile />
+        </>
     )
 }

@@ -1,4 +1,4 @@
-import {getUser} from "@/util/user";
+import {getUser, getUserPermissions} from "@/util/user";
 
 /**
  * Displays a logged-in user's details.
@@ -9,6 +9,7 @@ import {getUser} from "@/util/user";
 export default async function Profile() {
 
     const userToken = await getUser();
+    const userPermissions = await getUserPermissions();
 
     let userData = "";
     if (userToken.ok) {
@@ -17,7 +18,17 @@ export default async function Profile() {
         userData = "error fetching user";
     }
 
+    let userPermissionsAsString = "";
+    if (userPermissions.ok) {
+        userPermissionsAsString = userPermissions.permissions;
+    } else {
+        userPermissionsAsString = userPermissions.message;
+    }
+
     return(
-        <>{userData}</>
+        <>
+            <p>User ID: {userData}</p>
+            <p>Permissions: {userPermissionsAsString}</p>
+        </>
     )
 }

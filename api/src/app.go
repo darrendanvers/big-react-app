@@ -72,6 +72,8 @@ func main() {
 
 	// User info endpoint.
 	mux.Handle("/user", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.UserInfo()))
+	mux.Handle("/user/permissions", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetUserPermissions()))
+	mux.Handle("/user/forbidden", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.ReturnForbidden()))
 
 	// Respond with data.
 	mux.Handle("/data", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetData()))

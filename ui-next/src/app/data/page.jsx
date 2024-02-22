@@ -1,5 +1,8 @@
 import {get} from "@/util/http";
 import Dropdown from "@/app/data/dropdown";
+import Authenticated from "@/app/auth/Authenticated";
+import Navbar from "@/common/Navbar";
+
 
 /**
  * Displays a page where the user can select data to show.
@@ -15,8 +18,11 @@ export default async function ShowData({ searchParams }) {
 
     return (
         <>
-            <Dropdown />
-            <div>{data.property}</div>
+            <Authenticated message="Data page">
+                <Navbar />
+                <Dropdown />
+                <div>{data.property}</div>
+            </Authenticated>
         </>
     )
 }
