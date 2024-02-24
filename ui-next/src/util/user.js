@@ -1,66 +1,99 @@
-import {cookies} from "next/headers";
-import {
-    decorateRequestWithUserToken,
-    getServerApiBaseUri,
-    getOpts,
-    decorateResponse,
-    handleErrorResponse,
-    get
-} from "@/util/http";
+import {get} from "@/util/http";
+import {getServerSession} from "next-auth/next";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+import {JwksClient} from "jwks-rsa";
+import * as jwt from "jsonwebtoken";
 
 /**
- * Returns the raw user login token after validation wrapped in an indicator object. If the token is valid,
- * the wrapper object contains an ok property with a value of true. If the token is not present or is invalid, the
- * wrapper object contains an ok property with a value of false.
- * @returns {Promise<{ok: boolean, token: null|string} | {ok: boolean}>|Promise<Awaited<{ok: boolean}>>}
+ * Returns a Promise that will resolve to the user's permissions.
+ *
+ * @returns {Promise<*>}
  */
-export function getValidatedRawToken() {
-
-    const token = getRawUserToken();
-    if  (token == null) {
-        return Promise.resolve({ok: false, unauthenticated: true});
-    } else {
-        return validateUserToken(token)
-            .then((j) => {
-                if (j.ok) {
-                    return {ok: true, token: token};
-                } else {
-                    j;
-                }
-            })
-    }
-
-}
-
-/**
- * If there is a user token present, returns the resolved user object. The function adds a property
- * ok which will contain true if the user token is present and valid. It will contain false if either the token
- * is not present or is invalid.
- * @returns {Promise<{ok: boolean}>|Promise<Awaited<{ok: boolean}>>}
- */
-export function getUser() {
-
-    const token = getRawUserToken();
-    if (token == null) {
-        return Promise.resolve({ok: false, error:false, unauthenticated: true, unauthorized: false});
-    } else {
-        return validateUserToken(token);
-    }
-}
-
 export function getUserPermissions() {
    return get("/user/permissions");
 }
 
-function getRawUserToken() {
-    const cookie = cookies().get('token');
-    return cookie == null ? null : cookie.value;
+/**
+ * If present, returns a Promise that will resolve to the raw JWT of the logged-in user. If not present, will return null.
+ *
+ * @returns {Promise<GetServerSessionOptions["callbacks"] extends {session: (...args: any[]) => infer U} ? U : Session | null>}
+ */
+export function getRawUserToken() {
+
+    return getServerSession(authOptions)
+        .then((session) => {
+            if (session == null) {
+                return null;
+            } else {
+                return session.idToken;
+            }
+        });
 }
 
-function validateUserToken(token) {
+/**
+ * If present and valid, returns a Promise that will resolve to the logged-in users's JWT. If not present or the JWT
+ * is no longer valid, will return null.
+ * @returns {Promise<never>}
+ */
+export function getValidatedRawToken() {
 
-    const opts = decorateRequestWithUserToken(getOpts(), token);
-    return fetch( `${getServerApiBaseUri()}/user`, opts)
-        .then((r) => decorateResponse(r))
-        .catch((e) => handleErrorResponse(e));
+    return getRawUserToken()
+        .then((rawToken) => validateRawToken(rawToken));
+}
+
+function validateRawToken(token) {
+
+    return validateRawTokenWithServer(token);
+}
+
+function validateRawTokenWithServer(token) {
+    const provider = authOptions.providers[0];
+    const wellKnown = provider.wellKnown;
+
+    return fetch(wellKnown)
+        .then((wellKnownResponse) => {
+            if (!wellKnownResponse.ok) {
+                console.log(wellKnownResponse.statusText);
+                return Promise.reject(wellKnownResponse.statusText);
+            }
+            return wellKnownResponse.json()
+                .then((wellKnownConfig) => {
+                    console.log(wellKnownConfig.jwks_uri);
+                    console.log(wellKnownConfig.jwks_uri);
+                    return callValidation(wellKnownConfig.jwks_uri, token);
+                });
+        });
+}
+
+function callValidation(jwksUri, token) {
+
+    if (token == null) {
+        return Promise.resolve(null);
+    }
+
+    const jwksClient = new JwksClient({jwksUri: jwksUri});
+
+    return new Promise((resolve, reject) => {
+        jwt.verify(token, getSigningKeyRetriever(jwksClient),
+            (err, key) => {
+                if (err != null) {
+                    return reject(err);
+                }
+                resolve(key);
+            })
+    })
+}
+
+function getSigningKeyRetriever(jwksCLient) {
+   return (header, callback) => {
+       jwksCLient.getSigningKey(header.kid,
+           function(err, key) {
+               if (err) {
+                   return callback(err, null);
+               }
+               const signingKey = key.publicKey || key.rsaPublicKey;
+               return callback(null, signingKey);
+           }
+       );
+   };
 }

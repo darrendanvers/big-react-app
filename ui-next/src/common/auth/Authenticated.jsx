@@ -1,5 +1,5 @@
-import {getUser} from "@/util/user";
-import {LoginRedirect} from "@/app/auth/LoginRedirect";
+import {LoginRedirect} from "@/common/auth/LoginRedirect";
+import {getValidatedRawToken} from "@/util/user";
 
 /**
  * Intended to wrap the entire application. It manages initiating the login flow
@@ -12,11 +12,10 @@ import {LoginRedirect} from "@/app/auth/LoginRedirect";
  */
 export default async function Authenticated({message, children}) {
 
-    const userToken = await getUser();
-
-    if (!userToken.ok) {
-        return <> <p>{message}</p><LoginRedirect /> </>
-    } else {
-        return <><p>{message}</p>{children}</>
+    const token = await getValidatedRawToken();
+    if (token == null) {
+        return <LoginRedirect />
     }
+
+    return <><p>{message}</p>{children}</>
 }

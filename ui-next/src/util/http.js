@@ -1,4 +1,4 @@
-import {getValidatedRawToken, UnauthenticatedError } from "@/util/user";
+import {getRawUserToken} from "@/util/user";
 
 /**
  * Returns the path to the API server.
@@ -29,7 +29,7 @@ export function decorateRequestWithUserToken(opts, token) {
 
     if (token != null) {
         opts.headers = {
-            cookie: `token=${token}`
+            Authorization: `Bearer ${token}`
         }
     }
     return opts;
@@ -45,16 +45,16 @@ export function decorateRequestWithUserToken(opts, token) {
  */
 export function get(uri) {
 
-    return getValidatedRawToken()
-        .then((tokenResponse) => {
-            const token = tokenResponse.ok ? tokenResponse.token : null;
+    return getRawUserToken()
+        .then((token) => {
+
             const opts = decorateRequestWithUserToken(getOpts(), token);
             const fullUri = `${getServerApiBaseUri()}/${uri}`;
 
             return fetch(fullUri, opts)
                 .then((r) => decorateResponse(r))
                 .catch((e) => handleErrorResponse(e));
-        });
+        })
 }
 
 export function decorateResponse(r) {

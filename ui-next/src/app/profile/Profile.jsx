@@ -1,4 +1,5 @@
-import {getUser, getUserPermissions} from "@/util/user";
+import {getServerSession} from "next-auth/next";
+import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 
 /**
  * Displays a logged-in user's details.
@@ -8,27 +9,10 @@ import {getUser, getUserPermissions} from "@/util/user";
  */
 export default async function Profile() {
 
-    const userToken = await getUser();
-    const userPermissions = await getUserPermissions();
-
-    let userData = "";
-    if (userToken.ok) {
-        userData = userToken.sub;
-    } else {
-        userData = "error fetching user";
+    const session = await getServerSession(authOptions)
+    if (session == null) {
+        return <><p>No session</p></>
     }
 
-    let userPermissionsAsString = "";
-    if (userPermissions.ok) {
-        userPermissionsAsString = userPermissions.permissions;
-    } else {
-        userPermissionsAsString = userPermissions.message;
-    }
-
-    return(
-        <>
-            <p>User ID: {userData}</p>
-            <p>Permissions: {userPermissionsAsString}</p>
-        </>
-    )
+    return <><p>{session.user.name}</p></>
 }

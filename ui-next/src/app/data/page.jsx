@@ -1,6 +1,5 @@
 import {get} from "@/util/http";
 import Dropdown from "@/app/data/dropdown";
-import Authenticated from "@/app/auth/Authenticated";
 import Navbar from "@/common/Navbar";
 
 
@@ -18,11 +17,9 @@ export default async function ShowData({ searchParams }) {
 
     return (
         <>
-            <Authenticated message="Data page">
-                <Navbar />
-                <Dropdown />
-                <div>{data.property}</div>
-            </Authenticated>
+            <Navbar />
+            <Dropdown />
+            <div>{data.property}</div>
         </>
     )
 }

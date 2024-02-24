@@ -7,7 +7,7 @@ export default nextConfig;
 nextConfig.rewrites = async () => {
     return [
         {
-            source: '/api/:path*',
+            source: '/be/:path*',
             destination: 'http://localhost:5556/:path*',
         },
     ]

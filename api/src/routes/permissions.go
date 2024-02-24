@@ -7,17 +7,21 @@ import (
 	"net/http"
 )
 
+// UserPermissions contains an array of permissions for a specific user.
 type UserPermissions struct {
 	UserID      string   `json:"userId"`
 	Permissions []string `json:"permissions"`
 }
 
+// ReturnForbidden creates an HTTP Handler that will return a 403 for testing a user hitting
+// an endpoint they do not have access to.
 func ReturnForbidden() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 	})
 }
 
+// GetUserPermissions creates an HTTP Handler that will return a user's permissions.
 func GetUserPermissions() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +36,7 @@ func GetUserPermissions() http.Handler {
 			return
 		}
 
+		// Just something for now.
 		var perms []string
 		if token.Subject == "ddddd" {
 			perms = []string{"view", "edit", "admin"}

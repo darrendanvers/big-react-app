@@ -10,14 +10,14 @@ A lightly configured OIDC provider to aid in testing out authentication and auth
 Below is an example file:
 
 ```
-- client_id: oidc_client
-  client_secret: client_secret
+- client_id: node_client
+  client_secret: node_secret
   grant_types:
     - authorization_code
   response_types:
     - code
   redirect_uris:
-    - http://api:5556/auth/callback
+    - http://localhost:3001/api/auth/callback/local
 ```
 
 The structure of the client object is defined in 
