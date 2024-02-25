@@ -43,7 +43,7 @@ skip to step 4.
 
 ## Running the app with a cookie signing key
 
-1. Generate a random string.
+1. Generate a random string. An easy way is with the command `openssl rand -base64 32`.
 2. Use that value to set the `COOKIE_SIGNING_KEY` environment variable.
 3. For convenience, you can assign this environment variable in a file called `.secret.env`. Git
    will ignore this file.
