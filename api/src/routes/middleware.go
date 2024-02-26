@@ -61,11 +61,11 @@ func LogHandler(config MiddlewareChainConfig, next http.Handler) http.Handler {
 			logger = config.Logger.With().Str(spanIDKey, spanID).Logger()
 		}
 
-		traceParent, err := getTraceID(r.Header.Get("traceparent"))
+		traceId, err := getTraceID(r.Header.Get("traceparent"))
 		if err != nil {
 			logger.Error().Msgf("Unable to extrace trace ID: %s.", err)
 		} else {
-			logger.UpdateContext(func(c zerolog.Context) zerolog.Context { return c.Str("traceparent", traceParent) })
+			logger.UpdateContext(func(c zerolog.Context) zerolog.Context { return c.Str("traceId", traceId) })
 		}
 
 		ctx := context.WithValue(r.Context(), loggerKey, logger)
