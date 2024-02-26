@@ -3,6 +3,7 @@ package routes
 import (
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/mrz1836/go-sanitize"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/context"
 	"io"
@@ -60,10 +61,38 @@ func LogHandler(config MiddlewareChainConfig, next http.Handler) http.Handler {
 			logger = config.Logger.With().Str(spanIDKey, spanID).Logger()
 		}
 
+		traceParent, err := getTraceID(r.Header.Get("traceparent"))
+		if err != nil {
+			logger.Error().Msgf("Unable to extrace trace ID: %s.", err)
+		} else {
+			logger.UpdateContext(func(c zerolog.Context) zerolog.Context { return c.Str("traceparent", traceParent) })
+		}
+
 		ctx := context.WithValue(r.Context(), loggerKey, logger)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func getTraceID(traceParent string) (string, error) {
+
+	if traceParent == "" {
+		return generateNewTraceID()
+	}
+
+	splitToken := strings.Split(traceParent, "-")
+	if len(splitToken) < 2 {
+		return generateNewTraceID()
+	}
+	return sanitize.AlphaNumeric(splitToken[1], false), nil
+}
+
+func generateNewTraceID() (string, error) {
+	traceIDBytes, err := randBytes(16)
+	if err == nil {
+		return bytesToHex(traceIDBytes), nil
+	}
+	return "", err
 }
 
 // UserHandler provides an HTTP handler that validates the user has a valid JWT before proceeding. If

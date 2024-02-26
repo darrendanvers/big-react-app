@@ -1,39 +1,6 @@
 import {getRawUserToken} from "@/util/user";
-
-/**
- * Returns the path to the API server.
- * @returns {string}
- */
-export function getServerApiBaseUri() {
-    return process.env.SERVER_API_BASE_URI;
-}
-
-/**
- * Returns an object that can be passed to a fetch() request to trigger an HTTP GET request.
- *
- * @returns {{method: string}}
- */
-export function getOpts() {
-    return {method: "GET"};
-}
-
-/**
- * Takes an object that is being constructed to pass as options to a fetch() request and, if token
- * is present, adds it as a cookie to the options. It will return the updated object.
- *
- * @param opts The object that will be passed as options to a fetch() call.
- * @param token The user token. If this is null or undefined, this method has no effect.
- * @returns {*}
- */
-export function decorateRequestWithUserToken(opts, token) {
-
-    if (token != null) {
-        opts.headers = {
-            Authorization: `Bearer ${token}`
-        }
-    }
-    return opts;
-}
+import opentelemetry from "@opentelemetry/api";
+import {logger} from "@/util/logging";
 
 /**
  * Performs an HTTP GET request to a URI. If there is a logged-in user, the user's login token will be added
@@ -45,16 +12,54 @@ export function decorateRequestWithUserToken(opts, token) {
  */
 export function get(uri) {
 
+    logger.info(`Getting stuff from ${uri}.`);
     return getRawUserToken()
         .then((token) => {
 
-            const opts = decorateRequestWithUserToken(getOpts(), token);
+            const opts = decorateRequest(getOpts(), token);
             const fullUri = `${getServerApiBaseUri()}/${uri}`;
 
             return fetch(fullUri, opts)
                 .then((r) => decorateResponse(r))
                 .catch((e) => handleErrorResponse(e));
         })
+}
+
+
+// Returns the path to the API server.
+function getServerApiBaseUri() {
+    return process.env.APP_SERVER_API_BASE_URI;
+}
+
+// Returns an object that can be passed to a fetch() request to trigger an HTTP GET request.
+function getOpts() {
+    return {method: "GET"};
+}
+
+// Adds various headers to the request options.
+function decorateRequest(opts, token) {
+    opts.headers = {};
+    decorateRequestWithTraceParent(opts);
+    decorateRequestWithUserToken(opts, token);
+    return opts;
+}
+
+// If inside an active span, adds a traceparent header to the request options.
+function decorateRequestWithTraceParent(opts) {
+    const activeSpan = opentelemetry.trace.getActiveSpan();
+    if (activeSpan != null) {
+        opts.headers.traceparent = `00-${activeSpan.spanContext().traceId}-${activeSpan.spanContext().spanId}-00`;
+    }
+    return opts;
+}
+
+// If there is a user token, adds it as an authorization header.
+function decorateRequestWithUserToken(opts, token) {
+
+    if (token != null) {
+        opts.headers.Authorization = `Bearer ${token}`;
+    }
+    return opts;
 }
 
 export function decorateResponse(r) {

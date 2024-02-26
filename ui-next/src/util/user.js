@@ -3,6 +3,7 @@ import {getServerSession} from "next-auth/next";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {JwksClient} from "jwks-rsa";
 import * as jwt from "jsonwebtoken";
+import {TokenExpiredError} from "jsonwebtoken";
 
 /**
  * Returns a Promise that will resolve to the user's permissions.
@@ -53,15 +54,17 @@ function validateRawTokenWithServer(token) {
     return fetch(wellKnown)
         .then((wellKnownResponse) => {
             if (!wellKnownResponse.ok) {
-                console.log(wellKnownResponse.statusText);
                 return Promise.reject(wellKnownResponse.statusText);
             }
             return wellKnownResponse.json()
                 .then((wellKnownConfig) => {
-                    console.log(wellKnownConfig.jwks_uri);
-                    console.log(wellKnownConfig.jwks_uri);
                     return callValidation(wellKnownConfig.jwks_uri, token);
                 });
+        }).catch((err) => {
+            if (err instanceof TokenExpiredError) {
+                return Promise.resolve(null);
+            }
+            return Promise.reject(err);
         });
 }
 
@@ -77,7 +80,7 @@ function callValidation(jwksUri, token) {
         jwt.verify(token, getSigningKeyRetriever(jwksClient),
             (err, key) => {
                 if (err != null) {
-                    return reject(err);
+                    reject(err);
                 }
                 resolve(key);
             })

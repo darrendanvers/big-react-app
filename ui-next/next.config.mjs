@@ -3,4 +3,8 @@ const nextConfig = {};
 
 export default nextConfig;
 
-nextConfig.output = "standalone"
+nextConfig.output = "standalone";
+
+nextConfig.experimental = {
+    instrumentationHook: true
+};

@@ -24,7 +24,7 @@ export const authOptions = {
             },
 
             clientId: 'node_client',
-            clientSecret: process.env.LOCAL_OIDC_CLIENT_SECRET,
+            clientSecret: process.env.APP_LOCAL_OIDC_CLIENT_SECRET,
         }
     ],
     callbacks: {
