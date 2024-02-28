@@ -11,7 +11,7 @@ let traceExporter = new ConsoleSpanExporter();
 
 if (process.env.APP_OTEL_COLLECTOR_URI) {
     const exporterOptions = {
-        url: process.env.OTEL_COLLECTOR_URI,
+        url: process.env.APP_OTEL_COLLECTOR_URI,
     }
     traceExporter = new OTLPTraceExporter(exporterOptions);
 }

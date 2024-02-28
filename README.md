@@ -25,6 +25,7 @@ and front-end up and running, take these steps:
 8. The services take 5-10 seconds to start up. Wait for logs from all three containers.
 9. Open your browser and point it to [http://localhost:3001](http://localhost:3001).
 10. You can log in with any user ID and password, there is no validation.
+11. You can view your Open Telemetry data at [http://localhost:16686](http://localhost:16686) and [http://localhost:9090/](http://localhost:9090/).
 
 ### Sample clients.yml
 

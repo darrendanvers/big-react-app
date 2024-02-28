@@ -45,12 +45,45 @@ services:
       - APP_SERVER_API_BASE_URI=http://api:5556
       - LOCAL_OIDC_WELL_KNOWN=http://${LOCALHOST}:3000/.well-known/openid-configuration
       - NEXTAUTH_URL=http://localhost:3001
-      - NEXTAUTH_URL_INTERNAL=http://oidc:3001/
+      - NEXTAUTH_URL_INTERNAL=http://ui:3001/
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - APP_LOCAL_OIDC_CLIENT_SECRET=${LOCAL_OIDC_CLIENT_SECRET}
       - APP_VERSION=1.0
+      - NEXT_OTEL_VERBOSE=1
+      - APP_OTEL_COLLECTOR_URI=http://otel:4318/v1/traces
     depends_on:
       oidc:
         condition: service_healthy
     extra_hosts:
       - "${LOCALHOST}:host-gateway"
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+  otel:
+    image: otel/opentelemetry-collector:0.67.0
+    restart: always
+    command: [ "--config=/etc/otel-config.yaml" ]
+    volumes:
+      - ./otel-config.yaml:/etc/otel-config.yaml
+    ports:
+      - "1888:1888"
+      - "8888:8888"
+      - "8889:8889"
+      - "13133:13133"
+      - "4317:4317"
+      - "4318:4318"
+      - "55679:55679"
+    depends_on:
+      - jaeger
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    restart: always
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
