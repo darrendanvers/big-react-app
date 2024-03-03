@@ -64,9 +64,18 @@ function decorateRequestWithUserToken(opts, token) {
 
 export function decorateResponse(r) {
     if (!r.ok) {
-        const unauthenticated = r.status === 401;
-        const unauthorized = r.status === 403;
-        return {ok: false, error: false, unauthenticated: unauthenticated, unauthorized: unauthorized, message: r.statusText};
+        let errorMessage = r.statusText;
+        let unauthenticated = false;
+        let unauthorized = false;
+        if (r.status === 401) {
+            errorMessage = 'user is unauthenticated';
+            unauthenticated = true;
+        }
+        if (r.status === 403) {
+            errorMessage = 'user does not have permission to perform this action';
+            unauthorized = true;
+        }
+        return {ok: false, error: false, unauthenticated: unauthenticated, unauthorized: unauthorized, message: errorMessage};
     }
     return r.json()
         .then((j) => {
@@ -76,5 +85,6 @@ export function decorateResponse(r) {
 }
 
 export function handleErrorResponse(e) {
+    logger.error(e.message);
     return Promise.resolve({ok: false, error: true, unauthenticated: false, unauthorized: false, message: e.message})
 }

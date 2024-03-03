@@ -4,6 +4,7 @@ import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {JwksClient} from "jwks-rsa";
 import * as jwt from "jsonwebtoken";
 import {TokenExpiredError} from "jsonwebtoken";
+import {logger} from "@/util/logging";
 
 /**
  * Returns a Promise that will resolve to the user's permissions.
@@ -11,7 +12,7 @@ import {TokenExpiredError} from "jsonwebtoken";
  * @returns {Promise<*>}
  */
 export function getUserPermissions() {
-   return get("/user/permissions");
+   return get("user");
 }
 
 /**
@@ -39,7 +40,11 @@ export function getRawUserToken() {
 export function getValidatedRawToken() {
 
     return getRawUserToken()
-        .then((rawToken) => validateRawToken(rawToken));
+        .then((rawToken) => validateRawToken(rawToken))
+        .catch((err) => {
+            logger.error(err.message);
+            return Promise.resolve(null);
+        });
 }
 
 function validateRawToken(token) {
@@ -58,7 +63,7 @@ function validateRawTokenWithServer(token) {
             }
             return wellKnownResponse.json()
                 .then((wellKnownConfig) => {
-                    return callValidation(wellKnownConfig.jwks_uri, token);
+                    return callValidation(wellKnownConfig.issuer, wellKnownConfig.jwks_uri, token);
                 });
         }).catch((err) => {
             if (err instanceof TokenExpiredError) {
@@ -68,7 +73,7 @@ function validateRawTokenWithServer(token) {
         });
 }
 
-function callValidation(jwksUri, token) {
+function callValidation(issuer, jwksUri, token) {
 
     if (token == null) {
         return Promise.resolve(null);
@@ -77,7 +82,7 @@ function callValidation(jwksUri, token) {
     const jwksClient = new JwksClient({jwksUri: jwksUri});
 
     return new Promise((resolve, reject) => {
-        jwt.verify(token, getSigningKeyRetriever(jwksClient),
+        jwt.verify(token, getSigningKeyRetriever(jwksClient), {issuer: issuer},
             (err, key) => {
                 if (err != null) {
                     reject(err);

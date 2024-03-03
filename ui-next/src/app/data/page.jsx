@@ -2,6 +2,7 @@ import {get} from "@/util/http";
 import Dropdown from "@/app/data/dropdown";
 import Navbar from "@/common/Navbar";
 import opentelemetry from "@opentelemetry/api";
+import {Error} from "@/common/Error";
 
 
 /**
@@ -20,12 +21,16 @@ export default async function ShowData({ searchParams }) {
         const data = await get(`data?parameter=${selected}`);
 
         span.end();
-        return (
-            <>
-                <Navbar/>
-                <Dropdown/>
-                <div>{data.property}</div>
-            </>
-        )
+        if (!data.ok) {
+            return <Error message={data.message} />
+        } else {
+            return (
+                <>
+                    <Navbar/>
+                    <Dropdown/>
+                    <div>{data.property}</div>
+                </>
+            )
+        }
     })
 }

@@ -1,3 +1,5 @@
+> This repository is deprecated. Please see [../api-react](../api-react).
+
 # API
 
 The backend application. It's pretty simple at this point is mostly there to handle interacting with the OIDC provider.
