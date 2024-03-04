@@ -82,7 +82,7 @@ function callValidation(issuer, jwksUri, token) {
     const jwksClient = new JwksClient({jwksUri: jwksUri});
 
     return new Promise((resolve, reject) => {
-        jwt.verify(token, getSigningKeyRetriever(jwksClient), {issuer: issuer},
+        jwt.verify(token, getSigningKeyRetriever(jwksClient), {issuer: issuer, audience: process.env.APP_LOCAL_OIDC_CLIENT_ID},
             (err, key) => {
                 if (err != null) {
                     reject(err);

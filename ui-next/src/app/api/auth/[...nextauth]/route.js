@@ -23,7 +23,7 @@ export const authOptions = {
                 }
             },
 
-            clientId: 'node_client',
+            clientId: process.env.APP_LOCAL_OIDC_CLIENT_ID,
             clientSecret: process.env.APP_LOCAL_OIDC_CLIENT_SECRET,
         }
     ],
