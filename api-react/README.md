@@ -1,3 +1,5 @@
+> This repository is deprecated. Please see [../api](../api).
+> 
 # API
 
 The backend application. I'll expand it over time, but a complex backend is not the point of this application, so will stay thin.

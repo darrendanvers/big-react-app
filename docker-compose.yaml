@@ -22,13 +22,14 @@ services:
   api:
     image: "react-api:latest"
     build:
-      context: ./api-react
+      context: ./api
     ports:
       - "5556:5556"
     environment:
       - OIDC_PROVIDER_URI=http://${LOCALHOST}:3000
-      - OIDC_CLIENT_AUDIENCE=node_client
-      - OTEL_TRACE_ENDPOINT=http://otel:4318/v1/traces
+      - HOSTNAME=api
+      - PORT=5556
+      - CLIENT_AUDIENCE=node_client
     depends_on:
       oidc:
         condition: service_healthy

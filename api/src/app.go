@@ -35,7 +35,7 @@ func main() {
 	authenticatedChainConfig := routes.MiddlewareChainConfig{Authenticate: true, OidcProviderURI: oidcProviderURI, Audience: clientAudience, Logger: logger}
 
 	// User info endpoint.
-	mux.Handle("/user/permissions", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetUserPermissions()))
+	mux.Handle("/user", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetUserPermissions()))
 	mux.Handle("/user/forbidden", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.ReturnForbidden()))
 
 	// Respond with data.
