@@ -3,6 +3,7 @@ import Dropdown from "@/app/data/dropdown";
 import Navbar from "@/common/Navbar";
 import opentelemetry from "@opentelemetry/api";
 import {Error} from "@/common/Error";
+import Forbidden from "@/app/data/Forbidden";
 
 
 /**
@@ -29,6 +30,7 @@ export default async function ShowData({ searchParams }) {
                     <Navbar/>
                     <Dropdown/>
                     <div>{data.property}</div>
+                    <Forbidden />
                 </>
             )
         }
