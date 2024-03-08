@@ -19,10 +19,10 @@ export function get(uri) {
             const opts = decorateRequest(getOpts(), token);
             const fullUri = `${getServerApiBaseUri()}/${uri}`;
 
-            return fetch(fullUri, opts)
-                .then((r) => decorateResponse(r))
-                .catch((e) => handleErrorResponse(e));
-        })
+            return {opts: opts, fullUri: fullUri};
+        }).then(callInfo => fetch(callInfo.fullUri, callInfo.opts))
+        .then(r => decorateResponse(r))
+        .catch(e => handleErrorResponse(e));
 }
 
 

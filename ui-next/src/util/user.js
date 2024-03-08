@@ -48,11 +48,6 @@ export function getValidatedRawToken() {
 }
 
 function validateRawToken(token) {
-
-    return validateRawTokenWithServer(token);
-}
-
-function validateRawTokenWithServer(token) {
     const provider = authOptions.providers[0];
     const wellKnown = provider.wellKnown;
 
@@ -61,11 +56,9 @@ function validateRawTokenWithServer(token) {
             if (!wellKnownResponse.ok) {
                 return Promise.reject(wellKnownResponse.statusText);
             }
-            return wellKnownResponse.json()
-                .then((wellKnownConfig) => {
-                    return callValidation(wellKnownConfig.issuer, wellKnownConfig.jwks_uri, token);
-                });
-        }).catch((err) => {
+            return wellKnownResponse.json();
+        }).then(wellKnownConfig => callValidation(wellKnownConfig.issuer, wellKnownConfig.jwks_uri, token))
+        .catch((err) => {
             if (err instanceof TokenExpiredError) {
                 return Promise.resolve(null);
             }
