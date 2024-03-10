@@ -11,18 +11,18 @@ import {Error} from "@/common/Error";
  * @returns {Promise<*|JSX.Element>}
  * @constructor
  */
-export default async function Perm({permission, permitted, notPermitted}) {
+export default function Perm({permission, permitted, notPermitted}) {
 
-    const userPermissions = await getUserPermissions();
+    return getUserPermissions().then((p) => {
 
-    if (!userPermissions.ok) {
-        const message = `Error fetching permissions ${userPermissions.message}`;
-        return <Error message={message} />
-    }
-
-    if (!userPermissions.permissions.includes(permission)) {
-        return notPermitted;
-    }
-
-    return permitted;
+        if (p.ok) {
+            if (!p.permissions.includes(permission)) {
+                return notPermitted;
+            } else {
+                return permitted;
+            }
+        } else {
+            return <Error message={p.message} />
+        }
+    });
 }

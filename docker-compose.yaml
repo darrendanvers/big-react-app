@@ -30,6 +30,8 @@ services:
       - HOSTNAME=api
       - PORT=5556
       - CLIENT_AUDIENCE=node_client
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel:4318
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=api-next,service.version=1.0.0
     depends_on:
       oidc:
         condition: service_healthy

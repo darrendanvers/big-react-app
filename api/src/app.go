@@ -4,12 +4,17 @@ This is an example application to demonstrate parsing an ID Token.
 package main
 
 import (
+	"api/src/logging"
+	"api/src/otel"
 	"api/src/routes"
 	"errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/net/context"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -23,11 +28,61 @@ var (
 // Main application driver method.
 func main() {
 
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	logger := log.With().
-		Str("service", "big-react-app-api").
-		Str("env", "dev").
-		Logger()
+	logger := logging.ConfigureLogger("big-react-app-api", "dev")
+
+	if err := run(logger); err != nil {
+		logger.Fatal().Msgf("%s.", err)
+	}
+}
+
+func run(logger zerolog.Logger) (err error) {
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	// Set up OpenTelemetry.
+	otelShutdown, err := otel.ConfigureOtel(ctx)
+	if err != nil {
+		return
+	}
+	// Handle shutdown properly so nothing leaks.
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+
+	// Start the HTTP server.
+
+	// The server and port the application is running on.
+	serverAndPort := hostname + ":" + port
+	fullURI := "http://" + serverAndPort
+
+	server := http.Server{
+		Addr:              serverAndPort,
+		BaseContext:       func(_ net.Listener) context.Context { return ctx },
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      90 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		Handler:           createHTTPHandler(logger),
+	}
+	serverError := make(chan error, 1)
+	go func() {
+		logger.Info().Msgf("Listening on %s.", fullURI)
+		serverError <- server.ListenAndServe()
+	}()
+
+	select {
+	case err = <-serverError:
+		return
+	case <-ctx.Done():
+		stop()
+	}
+
+	err = server.Shutdown(context.Background())
+	return
+}
+
+func createHTTPHandler(logger zerolog.Logger) http.Handler {
 
 	mux := http.NewServeMux()
 
@@ -35,31 +90,14 @@ func main() {
 	authenticatedChainConfig := routes.MiddlewareChainConfig{Authenticate: true, OidcProviderURI: oidcProviderURI, Audience: clientAudience, Logger: logger}
 
 	// User info endpoint.
-	mux.Handle("/user", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetUserPermissions()))
-	mux.Handle("/user/forbidden", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.ReturnForbidden()))
+	routes.AddRouteToMuxOrFatal(mux, "/user", authenticatedChainConfig, routes.GetUserPermissions())
+	routes.AddRouteToMuxOrFatal(mux, "/user/forbidden", authenticatedChainConfig, routes.ReturnForbidden())
 
 	// Respond with data.
-	mux.Handle("/data", routes.MiddlewareChainOrFatal(authenticatedChainConfig, routes.GetData()))
+	routes.AddRouteToMuxOrFatal(mux, "/data", authenticatedChainConfig, routes.GetData())
 
 	// Default route.
-	mux.Handle("/", routes.MiddlewareChainOrFatal(unauthenticatedChainConfig, routes.PathUndefined()))
+	routes.AddRouteToMuxOrFatal(mux, "/", unauthenticatedChainConfig, routes.PathUndefined())
 
-	// Start the application.
-	// The server and port the application is running on.
-	serverAndPort := hostname + ":" + port
-	fullURI := "http://" + serverAndPort
-
-	server := http.Server{
-		Addr:              serverAndPort,
-		ReadTimeout:       30 * time.Second,
-		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      90 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		Handler:           mux,
-	}
-	logger.Info().Msgf("Listening on %s.", fullURI)
-	err := server.ListenAndServe()
-	if !errors.Is(err, http.ErrServerClosed) {
-		logger.Fatal().Msg(err.Error())
-	}
+	return otelhttp.NewHandler(mux, "/")
 }

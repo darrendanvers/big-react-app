@@ -3,15 +3,16 @@ package routes
 import (
 	"errors"
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/mrz1836/go-sanitize"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/context"
 	"io"
 	"net/http"
 	"strings"
 )
 
-// MiddlewareChainConfig allows for configuration of the default middleware chain.
+// MiddlewareChainConfig allows for configuration of middleware chains.
 type MiddlewareChainConfig struct {
 	Authenticate    bool
 	OidcProviderURI string
@@ -19,11 +20,19 @@ type MiddlewareChainConfig struct {
 	Logger          zerolog.Logger
 }
 
+// AddRouteToMuxOrFatal is a convenience method that will add a handler to the supplied ServeMux for the supplied
+// route. It uses MiddlewareChainOrFatal internally, so any error adding the route will log a fatal error and
+// stop the application.
+func AddRouteToMuxOrFatal(mux *http.ServeMux, route string, config MiddlewareChainConfig, handler http.Handler) {
+
+	mux.Handle(route, MiddlewareChainOrFatal(route, config, handler))
+}
+
 // MiddlewareChainOrFatal is a convenience method that will call MiddlewareChain and log a fatal error
 // if it returns an error.
-func MiddlewareChainOrFatal(config MiddlewareChainConfig, next http.Handler) http.Handler {
+func MiddlewareChainOrFatal(route string, config MiddlewareChainConfig, next http.Handler) http.Handler {
 
-	handler, err := MiddlewareChain(config, next)
+	handler, err := MiddlewareChain(route, config, next)
 	if err != nil {
 		config.Logger.Fatal().Msg(err.Error())
 	}
@@ -34,7 +43,7 @@ func MiddlewareChainOrFatal(config MiddlewareChainConfig, next http.Handler) htt
 // functional handlers. It allows some configuration based on the MiddlewareChainConfig variable
 // passed in. Currently, the only configuration is turning on or off the UserHandler to allow
 // endpoints that do not need an authenticated user.
-func MiddlewareChain(config MiddlewareChainConfig, next http.Handler) (http.Handler, error) {
+func MiddlewareChain(route string, config MiddlewareChainConfig, next http.Handler) (http.Handler, error) {
 
 	innerHandler := next
 	if config.Authenticate {
@@ -44,7 +53,9 @@ func MiddlewareChain(config MiddlewareChainConfig, next http.Handler) (http.Hand
 			return nil, err
 		}
 	}
-	return LogHandler(config, DrainAndCloseHandler(innerHandler)), nil
+	logHandler := LogHandler(config, DrainAndCloseHandler(innerHandler))
+
+	return otelhttp.WithRouteTag(route, logHandler), nil
 }
 
 // LogHandler adds the logger from the MiddlewareChainConfig into the context so that it can
@@ -55,44 +66,18 @@ func LogHandler(config MiddlewareChainConfig, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		logger := config.Logger
-		spanIDBytes, err := randBytes(8)
-		if err == nil {
-			spanID := bytesToHex(spanIDBytes)
-			logger = config.Logger.With().Str(spanIDKey, spanID).Logger()
-		}
 
-		traceId, err := getTraceID(r.Header.Get("traceparent"))
-		if err != nil {
-			logger.Error().Msgf("Unable to extrace trace ID: %s.", err)
-		} else {
-			logger.UpdateContext(func(c zerolog.Context) zerolog.Context { return c.Str("traceId", traceId) })
-		}
+		span := trace.SpanFromContext(r.Context())
+		traceID := span.SpanContext().TraceID().String()
+		spanID := span.SpanContext().SpanID().String()
 
+		logger = config.Logger.With().Str(spanIDKey, spanID).Logger()
+		logger.UpdateContext(func(c zerolog.Context) zerolog.Context { return c.Str("traceId", traceID) })
 		ctx := context.WithValue(r.Context(), loggerKey, logger)
 		r = r.WithContext(ctx)
+
 		next.ServeHTTP(w, r)
 	})
-}
-
-func getTraceID(traceParent string) (string, error) {
-
-	if traceParent == "" {
-		return generateNewTraceID()
-	}
-
-	splitToken := strings.Split(traceParent, "-")
-	if len(splitToken) < 2 {
-		return generateNewTraceID()
-	}
-	return sanitize.AlphaNumeric(splitToken[1], false), nil
-}
-
-func generateNewTraceID() (string, error) {
-	traceIDBytes, err := randBytes(16)
-	if err == nil {
-		return bytesToHex(traceIDBytes), nil
-	}
-	return "", err
 }
 
 // UserHandler provides an HTTP handler that validates the user has a valid JWT before proceeding. If

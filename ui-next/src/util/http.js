@@ -1,5 +1,5 @@
 import {getRawUserToken} from "@/util/user";
-import opentelemetry from "@opentelemetry/api";
+import { context, propagation } from '@opentelemetry/api';
 import {logger} from "@/util/logging";
 
 /**
@@ -44,13 +44,19 @@ function decorateRequest(opts, token) {
     return opts;
 }
 
-// If inside an active span, adds a traceparent header to the request options.
+// If inside an active span, adds a traceparent and tracestate headers to the request options.
 function decorateRequestWithTraceParent(opts) {
-    const activeSpan = opentelemetry.trace.getActiveSpan();
-    if (activeSpan != null) {
-        opts.headers.traceparent = `00-${activeSpan.spanContext().traceId}-${activeSpan.spanContext().spanId}-00`;
+
+    const output = {};
+    propagation.inject(context.active(), output);
+
+    if (output.traceparent != null) {
+        opts.headers.traceparent = output.traceparent;
     }
-    return opts;
+    if (output.tracestate != null) {
+        opts.headers.tracestate = output.tracestate;
+    }
+    return opts
 }
 
 // If there is a user token, adds it as an authorization header.
