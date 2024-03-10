@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"api/src/sanitization"
 	"encoding/json"
 	"github.com/rs/zerolog"
 	"net/http"
@@ -19,9 +20,11 @@ func GetData() http.Handler {
 		logger := r.Context().Value(loggerKey).(zerolog.Logger)
 
 		parameter := r.URL.Query().Get("parameter")
-		logger.Info().Msgf("Returning data for '%s'.", parameter)
+		sanitizedParameter := sanitization.Policy().Sanitize(parameter)
 
-		responseData := Response{Property: parameter}
+		logger.Info().Msgf("Returning data for '%s'.", sanitizedParameter)
+
+		responseData := Response{Property: sanitizedParameter}
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(responseData)
 		if err != nil {
@@ -30,5 +33,4 @@ func GetData() http.Handler {
 			return
 		}
 	})
-
 }

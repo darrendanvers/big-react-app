@@ -4,18 +4,20 @@ go 1.21
 
 require (
 	github.com/coreos/go-oidc/v3 v3.9.0
-	github.com/mrz1836/go-sanitize v1.3.1
+	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/rs/zerolog v1.32.0
 	golang.org/x/net v0.20.0
 )
 
 require (
+	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/gorilla/css v1.0.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
