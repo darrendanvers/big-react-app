@@ -1,16 +1,15 @@
-package otel
+package otelconfig
 
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"time"
-
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"time"
 )
 
 // See https://opentelemetry.io/docs/languages/go/getting-started/

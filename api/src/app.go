@@ -5,7 +5,7 @@ package main
 
 import (
 	"api/src/logging"
-	"api/src/otel"
+	"api/src/otelconfig"
 	"api/src/routes"
 	"errors"
 	"github.com/rs/zerolog"
@@ -41,7 +41,7 @@ func run(logger zerolog.Logger) (err error) {
 	defer stop()
 
 	// Set up OpenTelemetry.
-	otelShutdown, err := otel.ConfigureOtel(ctx)
+	otelShutdown, err := otelconfig.ConfigureOtel(ctx)
 	if err != nil {
 		return
 	}
@@ -94,7 +94,7 @@ func createHTTPHandler(logger zerolog.Logger) http.Handler {
 	routes.AddRouteToMuxOrFatal(mux, "/user/forbidden", authenticatedChainConfig, routes.ReturnForbidden())
 
 	// Respond with data.
-	routes.AddRouteToMuxOrFatal(mux, "/data", authenticatedChainConfig, routes.GetData())
+	routes.AddRouteToMuxOrFatal(mux, "/data", unauthenticatedChainConfig, routes.GetData())
 
 	// Default route.
 	routes.AddRouteToMuxOrFatal(mux, "/", unauthenticatedChainConfig, routes.PathUndefined())
