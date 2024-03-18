@@ -1,14 +1,15 @@
 import styles from "./page.module.css";
 import Link from "next/link";
 import Perm from "@/common/auth/Perm";
+import React from "react";
 
 /**
  * The main application element.
  *
- * @returns {JSX.Element}
+ * @returns {React.JSX.Element}
  * @constructor
  */
-export default function Home() {
+export default function Home(): React.JSX.Element {
 
     return (
         <main className={styles.main}>

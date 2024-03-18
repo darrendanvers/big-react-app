@@ -1,17 +1,17 @@
 'use client';
 import {signIn} from "next-auth/react";
-import {useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 
 /**
  * Presents a button that will redirect the user back to the login screen. This saves the current location so the user will
  * be redirected back here after login.
  *
- * @returns {JSX.Element}
+ * @returns {React.JSX.Element}
  * @constructor
  */
-export function LoginRedirect() {
+export function LoginRedirect(): React.JSX.Element {
 
-    const [location, setLocation] = useState('');
+    const [location, setLocation] = useState<string>('');
 
     useEffect(() => setLocation(window.location.href), []);
 

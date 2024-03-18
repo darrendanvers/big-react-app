@@ -1,3 +1,6 @@
+import React from "react";
+import {ChildOnlyParameterType} from "@/common/next-interfaces";
+
 /**
  * Layout for profile pages.
  *
@@ -5,7 +8,7 @@
  * @returns {JSX.Element}
  * @constructor
  */
-export default function ProfileLayout({ children }) {
+export default function ProfileLayout({ children }: ChildOnlyParameterType): React.JSX.Element {
 
     return (
         <>

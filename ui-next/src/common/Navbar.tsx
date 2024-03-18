@@ -1,8 +1,14 @@
 'use client';
 
 import Link from "next/link";
+import React from "react";
 
-export default function Navbar() {
+/**
+ * Displays the navigation bar.
+ *
+ * @constructor
+ */
+export default function Navbar(): React.JSX.Element {
 
     return (
         <>

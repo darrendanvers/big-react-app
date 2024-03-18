@@ -3,7 +3,7 @@
  *
  * @returns {Promise<void>}
  */
-export async function register() {
+export async function register() : Promise<void> {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
         // Using the logger at this point triggers errors.
         console.log('Enabling OTEL instrumentation.')

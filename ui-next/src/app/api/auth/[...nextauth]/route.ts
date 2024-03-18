@@ -1,11 +1,18 @@
-import NextAuth from "next-auth"
+import NextAuth, {AuthOptions, Session} from "next-auth"
+
+/**
+ * Extends the default NextAuth session to contain the JWT.
+ */
+export interface ExtendedSession extends Session {
+    idToken?: string
+}
 
 /**
  * Configuration options for Next Auth.
  *
- * @type {{callbacks: {session({session: *, token: *, user: *}): Promise<*>, jwt({token: *, user: *, account: *, profile: *, isNewUser: *}): Promise<*>}, providers: [{authorization: {params: {scope: string}}, wellKnown: string, checks: string[], clientId: string, profile(*): {name: *, id: *}, name: string, idToken: boolean, clientSecret: string, id: string, type: string}]}}
+ * @type AuthOptions
  */
-export const authOptions = {
+export const authOptions: AuthOptions = {
     providers: [
         {
             id: 'local',
@@ -29,9 +36,10 @@ export const authOptions = {
     ],
     callbacks: {
         async session({ session, token, user }) {
+            let extendedSession: ExtendedSession = session
             // Add the raw JWT (added to the user token below) to the user's session.
-            session.idToken = token.idToken;
-            return session
+            extendedSession.idToken = token.idToken as string;
+            return extendedSession
         },
         async jwt({ token, user, account, profile, isNewUser }) {
             // Add the raw JWT to the Next Auth internal token.

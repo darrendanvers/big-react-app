@@ -1,5 +1,6 @@
 import Profile from "@/app/profile/Profile";
 import Navbar from "@/common/Navbar";
+import React from "react";
 
 /**
  * Primary component for the profile route.
@@ -7,7 +8,7 @@ import Navbar from "@/common/Navbar";
  * @returns {JSX.Element}
  * @constructor
  */
-export default function UserProfile() {
+export default function UserProfile(): React.JSX.Element {
 
     return (
         <>

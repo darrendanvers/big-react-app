@@ -1,19 +1,20 @@
 'use client';
 
 import {useRouter} from "next/navigation";
+import React from "react";
 
 /**
  * Allows a user to select what data they want to process from a dropdown. After selection, the page is reloaed
  * with the new data.
  *
- * @returns {JSX.Element}
+ * @returns {React.JSX.Element}
  * @constructor
  */
-export default function Dropdown() {
+export default function Dropdown(): React.JSX.Element {
 
     const router = useRouter();
 
-    function handleChange(e) {
+    function handleChange(e: React.ChangeEvent<HTMLSelectElement>): void {
         router.push(`/data?selected=${e.target.value}`);
     }
 
