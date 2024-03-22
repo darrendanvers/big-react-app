@@ -1,6 +1,6 @@
 import {get, HttpResponseWrapper} from "@/util/http";
 import {getServerSession} from "next-auth/next";
-import {authOptions, ExtendedSession} from "@/app/api/auth/[...nextauth]/route";
+import authOptions from "@/app/api/auth/[...nextauth]/options";
 import {JwksClient, SigningKey} from "jwks-rsa";
 import * as jwt from "jsonwebtoken";
 import {
@@ -11,6 +11,7 @@ import {
 } from "jsonwebtoken";
 import {logger} from "@/util/logging";
 import {OAuthConfig} from "next-auth/providers/oauth";
+import {ExtendedSession} from "@/app/api/auth/[...nextauth]/types";
 
 /**
  * The details of a user's permissions.

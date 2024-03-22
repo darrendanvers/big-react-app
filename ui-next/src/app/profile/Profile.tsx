@@ -1,6 +1,7 @@
 import {getServerSession} from "next-auth/next";
-import {authOptions} from "@/app/api/auth/[...nextauth]/route";
+
 import React from "react";
+import authOptions from "@/app/api/auth/[...nextauth]/options";
 
 /**
  * Displays a logged-in user's details.
